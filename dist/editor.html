@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, target-densitydpi=device-dpi"/>
+	<title>PasTeX</title>
+	
+	<link rel="stylesheet" type="text/css" href="../static/css/common.css" media="screen" />
+	<link rel="stylesheet" type="text/css" href="../static/css/editor.css" media="screen" />
+
+	<script type="text/javascript" src="../static/js/editor.js"></script>
+</head>
+
+<body>
+	<div id="elm"></div>
+</body>
+
+<script src="../static/js/ace/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+
+<script type="text/javascript">
+		let content = "\\begin{equation}\n\t1+1=2\n\\end{equation}"
+
+		var elm = Elm.Editor.init({
+			node: document.getElementById('elm'),
+			flags: content
+		});
+
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/mono_industrial");
+    editor.session.setMode("ace/mode/latex");
+		editor.session.setTabSize(2);
+		editor.setFontSize(15);
+		//editor.session.setValue(content);
+		
+		let value_just_set = false;
+		elm.ports.toJS.subscribe((content) => {
+			value_just_set = true;
+			editor.session.setValue(content + "\n");
+			editor.session.selection.clearSelection();
+			value_just_set = false;
+		});
+
+		editor.session.on('change', (delta) => {
+			if (!value_just_set) {
+				elm.ports.fromJS.send(delta);
+			}
+		});
+
+</script>
+
+</html>

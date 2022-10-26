@@ -1,0 +1,21 @@
+#main-container {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	grid-template-rows: 100vh;
+
+	position: absolute;
+		
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+}
+
+.panel {
+	margin-left: 1em;
+	margin-right: 1em;
+	padding-top: 1em;
+	width: 10vmax;
+	max-width: 10vmax;
+	
+}
