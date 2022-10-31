@@ -1,3 +1,11 @@
+# rust stuff
 /target
-/elm-stuff
 Cargo.lock
+
+# elm stuff
+/elm-stuff
+
+# nodejs stuff
+/node_modules
+package-lock.json
+package.json
