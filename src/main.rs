@@ -1,6 +1,6 @@
 use std::fs;
 use std::net::SocketAddrV4;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use tinyrand::{Rand, Seeded, StdRand};
 
@@ -94,12 +94,12 @@ async fn main() {
     let editor = warp::get()
         .and(warp::path!("p" / String))
         .and(data_filter())
-        .map(handlers::editor);
+        .and_then(handlers::editor);
 
     let new_paste_from_url = warp::get()
         .and(warp::path!("p"))
         .and(data_filter())
-        .map(handlers::new_paste);
+        .and_then(handlers::new_paste);
 
     let routes = index
         .or(statics)
@@ -109,7 +109,7 @@ async fn main() {
         .or(editor)
         .or(warp::any().map(handlers::not_found));
 
-    let socket = data.lock().unwrap().socket;
+    let socket = data.lock().await.socket;
 
     println!("Running server on {}...", socket);
     warp::serve(routes)
@@ -120,29 +120,35 @@ async fn main() {
 mod handlers {
     use crate::DataWrapper;
     use std::collections::HashMap;
-    use warp::http::{StatusCode, Uri};
+    use std::convert::Infallible;
+    use warp::http::{Response, StatusCode, Uri};
 
     pub fn open_paste(content: HashMap<String, String>) -> impl warp::Reply {
         let url = "/p/".to_owned() + &content["id"];
         warp::redirect::see_other(Uri::builder().path_and_query(url).build().unwrap())
     }
 
-    pub fn new_paste(data: DataWrapper<'_>) -> impl warp::Reply {
-        let uid = data.lock().unwrap().generate_uid();
+    pub async fn new_paste(data: DataWrapper<'_>) -> Result<impl warp::Reply, Infallible> {
+        let uid = data.lock().await.generate_uid();
         let url = "/p/".to_owned() + uid.as_str();
 
         println!("new_paste_from_url");
 
-        warp::redirect::see_other(Uri::builder().path_and_query(url).build().unwrap())
+        Ok(warp::redirect::see_other(
+            Uri::builder().path_and_query(url).build().unwrap(),
+        ))
     }
 
-    pub fn editor(id: String, data: DataWrapper<'_>) -> impl warp::Reply {
+    pub async fn editor(id: String, data: DataWrapper<'_>) -> Result<impl warp::Reply, Infallible> {
         println!("editor {}", id);
 
-        let hdb = &data.lock().unwrap().handlebars;
+        let hdb = &data.lock().await.handlebars;
         let tpl_params = HashMap::from([("id", id)]);
 
-        warp::reply::html(hdb.render("editor", &tpl_params).unwrap())
+        Ok(warp::reply::html(
+            hdb.render("editor", &tpl_params).unwrap(),
+        ))
+    }
     }
 
     pub fn not_found() -> impl warp::Reply {
