@@ -1,6 +1,7 @@
-use std::fs;
+use std::{fs, collections::HashMap};
 use std::net::SocketAddrV4;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use tinyrand::{Rand, Seeded, StdRand};
 
@@ -92,12 +93,17 @@ async fn main() {
         .and(warp::fs::file("dist/static/favicon.ico"));
 
     let editor = warp::get()
-        .and(warp::path!("p" / String))
+        .and(warp::path!("e" / String))
         .and(data_filter())
         .and_then(handlers::editor);
 
+    let pdf_view = warp::get()
+        .and(warp::path!("v" / String))
+        .and(data_filter())
+        .and_then(handlers::pdf_view);
+
     let new_paste_from_url = warp::get()
-        .and(warp::path!("p"))
+        .and(warp::path!("e"))
         .and(data_filter())
         .and_then(handlers::new_paste);
 
@@ -107,6 +113,7 @@ async fn main() {
         .or(favico)
         .or(new_paste_from_url)
         .or(editor)
+        .or(pdf_view)
         .or(warp::any().map(handlers::not_found));
 
     let socket = data.lock().await.socket;
@@ -124,13 +131,13 @@ mod handlers {
     use warp::http::{Response, StatusCode, Uri};
 
     pub fn open_paste(content: HashMap<String, String>) -> impl warp::Reply {
-        let url = "/p/".to_owned() + &content["id"];
+        let url = "/e/".to_owned() + &content["id"];
         warp::redirect::see_other(Uri::builder().path_and_query(url).build().unwrap())
     }
 
     pub async fn new_paste(data: DataWrapper<'_>) -> Result<impl warp::Reply, Infallible> {
         let uid = data.lock().await.generate_uid();
-        let url = "/p/".to_owned() + uid.as_str();
+        let url = "/e/".to_owned() + uid.as_str();
 
         println!("new_paste_from_url");
 
@@ -149,6 +156,22 @@ mod handlers {
             hdb.render("editor", &tpl_params).unwrap(),
         ))
     }
+
+    pub async fn pdf_view(
+        _id: String,
+        _data: DataWrapper<'_>,
+    ) -> Result<impl warp::Reply, Infallible> {
+        /*
+        Response::builder()
+            .status(StatusCode::PROCESSING)
+            .body(())
+            .unwrap()
+        */
+        println!("view");
+        Ok(warp::reply::with_status(
+            "heyo let me compile",
+            StatusCode::OK,
+        ))
     }
 
     pub fn not_found() -> impl warp::Reply {
