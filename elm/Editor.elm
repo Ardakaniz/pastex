@@ -1,6 +1,8 @@
 port module Editor exposing (..)
 
 import Ace
+import Parameters as Params
+import PdfView
 
 import Browser
 import Html exposing (Html, div, p, pre, text, button, input, label, iframe, br)
@@ -26,25 +28,42 @@ port fromJS : (Value -> msg) -> Sub msg
 -- MODEL
 
 type alias Model = 
-  { ace : Ace.Model
+  { ace     : Ace.Model
+  , params  : Params.Model
+  , pdfView : PdfView.Model
   }
 
 init : String -> ( Model, Cmd Msg )
 init content =
-  ( { ace = Ace.init content }
+  ( { ace     = Ace.init content
+    , params  = Params.init
+    , pdfView = PdfView.init
+    }
   , toJS content
   )
 
 -- UPDATE
 
 type Msg
-  = OnAce Ace.Msg
+  = OnAce     Ace.Msg
+  | OnParams  Params.Msg
+  | OnPdfView PdfView.Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     OnAce aceMsg ->
       ( { model | ace = Ace.update aceMsg model.ace }
+      , Cmd.none
+      )
+
+    OnParams paramsMsg ->
+      ( { model | params = Params.update paramsMsg model.params }
+      , Cmd.none
+      )
+
+    OnPdfView pdfViewMsg ->
+      ( { model | pdfView = PdfView.update pdfViewMsg model.pdfView }
       , Cmd.none
       )
 
@@ -59,25 +78,7 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div [ id "main-container" ]
-    [ div [ class "panel" ] <| viewParameters model
-    , Html.map OnAce <| lazy (\_ -> Ace.view) ()
-    , div [ class "panel" ] <| viewPdfPreview model
+    [ Html.map OnParams  <| lazy Params.view model.params
+    , Html.map OnAce     <| lazy (\_ -> Ace.view) ()
+    , Html.map OnPdfView <| lazy PdfView.view model.pdfView
     ]
-
-viewParameters : Model -> List (Html Msg)
-viewParameters model
-  =  labeledInput "opt1" "radio" "Option 1" ++ [ br [] [] ]
-  ++ labeledInput "opt2" "radio" "Option 2" ++ [ br [] [] ]
-  ++ labeledInput "opt3" "radio" "Option 3" ++ [ br [] [] ]
-
-labeledInput : String -> String -> String -> List (Html Msg)
-labeledInput ident inpType val =
-  [ input [ id ident, type_ inpType ] []
-  , label [ for ident ] [ text val ]
-  ]
-
-viewPdfPreview : Model -> List (Html Msg)
-viewPdfPreview _ =
-  [ text "PDF Preview"
-  , div [ id "preview" ] [ p [] [ text "Loading..." ] ]
-  ]

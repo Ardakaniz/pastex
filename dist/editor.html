@@ -26,26 +26,22 @@
 		});
 
     var editor = ace.edit("editor");
-    editor.setTheme("ace/theme/mono_industrial");
-    editor.session.setMode("ace/mode/latex");
 		editor.session.setTabSize(2);
 		editor.setFontSize(15);
-		//editor.session.setValue(content);
 		
-		let value_just_set = false;
 		elm.ports.toJS.subscribe((content) => {
-			value_just_set = true;
 			editor.session.setValue(content + "\n");
 			editor.session.selection.clearSelection();
-			value_just_set = false;
 		});
 
 		editor.session.on('change', (delta) => {
-			if (!value_just_set) {
-				elm.ports.fromJS.send(delta);
-			}
+			elm.ports.fromJS.send(delta);
 		});
 
+		window.addEventListener("load", () => {
+			editor.setTheme("ace/theme/mono_industrial");
+    	editor.session.setMode("ace/mode/latex");
+		})
 </script>
 
 </html>

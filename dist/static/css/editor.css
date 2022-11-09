@@ -2,20 +2,53 @@
 	display: grid;
 	grid-template-columns: auto 1fr auto;
 	grid-template-rows: 100vh;
-
 	position: absolute;
-		
-		top: 0;
-		right: 0;
-		bottom: 0;
-		left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
 }
 
 .panel {
 	margin-left: 1em;
 	margin-right: 1em;
+	margin-top: 1em;
+	width: 15vmax;
+	max-width: 20vmax;	
+}
+
+/* PARAMETERS PANEL */
+#tabitems {
+	overflow: hidden;
+  border: 1px solid #3d3d3d;
+  background-color: #22221d;
+}
+
+.tabitem {
+	color: inherit;
+  background-color: inherit;
+  float: left;
+  border: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+}
+
+.tabitem:hover {
+  background-color: #3d3d3d;
+}
+
+.tabitem.active {
+  background-color: #3d3d3d;
+}
+
+.tabcontent {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+/* PDF VIEW PANEL */
+#preview {
 	padding-top: 1em;
-	width: 10vmax;
-	max-width: 10vmax;
-	
 }
