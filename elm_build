@@ -1,0 +1,16 @@
+# Adapted from https://guide.elm-lang.org/optimization/asset_size.html
+# Section 'Scripts'
+
+#!/bin/sh
+
+set -e
+
+elm="elm/Editor.elm"
+js="dist/static/js/editor.js"
+
+elm make --optimize --output=$js $elm
+
+uglifyjs $js --compress 'pure_funcs=[F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9],pure_getters,keep_fargs=false,unsafe_comps,unsafe' | uglifyjs --mangle --output $js
+
+echo "Minified size:$(wc $js -c) bytes  ($js)"
+echo "Gzipped size: $(gzip $js -c | wc -c) bytes"

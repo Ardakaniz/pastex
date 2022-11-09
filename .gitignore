@@ -4,6 +4,8 @@ Cargo.lock
 
 # elm stuff
 /elm-stuff
+## elm-generated js stuff
+/dist/static/js/editor.js
 
 # nodejs stuff
 /node_modules
