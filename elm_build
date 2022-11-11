@@ -6,7 +6,7 @@
 set -e
 
 elm="elm/Editor.elm"
-js="dist/static/js/editor.js"
+js="dist/static/js/editor-elm.js"
 
 elm make --optimize --output=$js $elm
 

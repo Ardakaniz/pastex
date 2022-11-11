@@ -1,14 +1,18 @@
-port module Editor exposing (..)
+module Editor exposing (..)
 
-import Ace
-import Parameters as Params
-import PdfView
+import Ui.Ace
+import Ui.Chat
+import Ui.Parameters
+import Ui.PdfView
+import Interprop exposing (toJs)
+import Interprop.Websocket as Ws
 
 import Browser
-import Html exposing (Html, div, p, pre, text, button, input, label, iframe, br)
-import Html.Attributes exposing (class, id, type_, value, for, src)
+import Html exposing (Html)
+import Html.Attributes as Attr
 import Html.Lazy exposing (lazy)
-import Json.Encode exposing (Value)
+import Json.Decode as Decode
+import Json.Encode as Encode exposing (Value)
 
 -- MAIN
 
@@ -21,64 +25,97 @@ main =
     , subscriptions = subscriptions
     }
 
--- PORTS
-port toJS : String -> Cmd msg
-port fromJS : (Value -> msg) -> Sub msg
-
 -- MODEL
 
 type alias Model = 
-  { ace     : Ace.Model
-  , params  : Params.Model
-  , pdfView : PdfView.Model
+  { ace     : Ui.Ace.Model
+  , params  : Ui.Parameters.Model
+  , pdfView : Ui.PdfView.Model
   }
 
 init : String -> ( Model, Cmd Msg )
-init content =
-  ( { ace     = Ace.init content
-    , params  = Params.init
-    , pdfView = PdfView.init
+init original =
+  let
+    ( ace, aceCmd ) = Ui.Ace.init original
+    ( pdfview, pdfviewCmd ) = Ui.PdfView.init 
+  in
+  ( { ace     = ace
+    , params  = Ui.Parameters.init
+    , pdfView = pdfview
     }
-  , toJS content
+  , Cmd.batch
+    [ aceCmd
+    , Cmd.map OnPdfViewMsg pdfviewCmd
+    , Ws.connectWith (Encode.string "World!") |> toJs
+    ]
   )
 
 -- UPDATE
 
 type Msg
-  = OnAce     Ace.Msg
-  | OnParams  Params.Msg
-  | OnPdfView PdfView.Msg
+  = OnParamsMsg  Ui.Parameters.Msg
+  | OnPdfViewMsg Ui.PdfView.Msg
+  | OnChatMsg    
+  | OnAceMsg     Ui.Ace.Msg -- Ace Ui has its own msg type
+  | OnWsMsg      (Maybe String) Value
+  | OnInvalidInterprop String
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
-    OnAce aceMsg ->
-      ( { model | ace = Ace.update aceMsg model.ace }
-      , Cmd.none
-      )
+    OnParamsMsg paramsMsg ->
+      noCmd { model | params = Ui.Parameters.update paramsMsg model.params }
 
-    OnParams paramsMsg ->
-      ( { model | params = Params.update paramsMsg model.params }
-      , Cmd.none
-      )
+    OnPdfViewMsg pdfViewMsg ->
+      let
+        ( pdfView, pdfViewCmd ) = Ui.PdfView.update pdfViewMsg model.pdfView              
+      in
+        ( { model | pdfView = pdfView }
+        , Cmd.map OnPdfViewMsg pdfViewCmd
+        )
 
-    OnPdfView pdfViewMsg ->
-      ( { model | pdfView = PdfView.update pdfViewMsg model.pdfView }
-      , Cmd.none
-      )
+    OnChatMsg ->
+      ( model, Cmd.none )
+
+    OnAceMsg aceMsg ->
+      let
+        new = Ui.Ace.update aceMsg model.ace 
+      in
+        noCmd { model | ace = new  }
+      
+    OnWsMsg tag content ->
+      case tag of
+        Just tag_ ->
+          case tag_ of -- TODO
+            "connected" -> noCmd model
+            "closed"    -> noCmd model 
+            _    -> noCmd model
+        Nothing  -> noCmd model
+
+    OnInvalidInterprop type_ -> ( model, Cmd.none )
+
+noCmd : Model -> ( Model, Cmd msg )
+noCmd model = ( model, Cmd.none )
 
 -- SUBSCRIPTIONS
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Ace.subscriptions >> OnAce |> fromJS
+  Interprop.fromJs
+    (\data ->
+      case data.type_ of
+        Interprop.Ace         -> OnAceMsg (Ui.Ace.decodeChanges data.content)
+        Interprop.WebSocket   -> OnWsMsg data.tag data.content
+        Interprop.Invalid inv -> OnInvalidInterprop inv
+    )
 
 -- VIEW
 
 view : Model -> Html Msg
 view model =
-  div [ id "main-container" ]
-    [ Html.map OnParams  <| lazy Params.view model.params
-    , Html.map OnAce     <| lazy (\_ -> Ace.view) ()
-    , Html.map OnPdfView <| lazy PdfView.view model.pdfView
+  Html.div [ Attr.id "main-container" ]
+    [ Html.map OnParamsMsg  <| lazy Ui.Parameters.view model.params
+    , Html.map OnAceMsg     <| lazy (\_ -> Ui.Ace.view) ()
+    , Html.map OnPdfViewMsg <| lazy Ui.PdfView.view model.pdfView
+    , Html.map (\_ -> OnChatMsg) <| lazy (\_ -> Ui.Chat.view) ()
     ]

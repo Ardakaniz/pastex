@@ -8,40 +8,17 @@
 	<link rel="stylesheet" type="text/css" href="../static/css/common.css" media="screen" />
 	<link rel="stylesheet" type="text/css" href="../static/css/editor.css" media="screen" />
 
-	<script type="text/javascript" src="../static/js/editor.js"></script>
+	<script type="text/javascript">
+		const original_content = "{{{ original_content }}}"
+	</script>
+
+	<script type="text/javascript" src="../static/js/editor-elm.js" defer></script>
+	<script type="text/javascript" src="../static/js/ace/src-min-noconflict/ace.js" defer></script>
+	<script type="text/javascript" src="../static/js/editor-min.js" defer></script>
 </head>
 
 <body>
 	<div id="elm"></div>
 </body>
-
-<script src="../static/js/ace/src-min-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
-
-<script type="text/javascript">
-		let content = "\\begin{equation}\n\t1+1=2\n\\end{equation}"
-
-		var elm = Elm.Editor.init({
-			node: document.getElementById('elm'),
-			flags: content
-		});
-
-    var editor = ace.edit("editor");
-		editor.session.setTabSize(2);
-		editor.setFontSize(15);
-		
-		elm.ports.toJS.subscribe((content) => {
-			editor.session.setValue(content + "\n");
-			editor.session.selection.clearSelection();
-		});
-
-		editor.session.on('change', (delta) => {
-			elm.ports.fromJS.send(delta);
-		});
-
-		window.addEventListener("load", () => {
-			editor.setTheme("ace/theme/mono_industrial");
-    	editor.session.setMode("ace/mode/latex");
-		})
-</script>
 
 </html>
