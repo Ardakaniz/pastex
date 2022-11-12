@@ -15,7 +15,7 @@ button:hover {
 
 /* MAIN LAYOUT */
 
-#main-container {
+main {
 	display: grid;
 	grid-template-columns: auto 1fr auto;
 	position: absolute;
@@ -28,22 +28,26 @@ button:hover {
 }
 
 .side-panel {
-  position: relative;
   width: 20vw;
-  max-width: 33vw;
 }
-.bot-panel {
-  position: relative;
-  width: 100%;
+
+.flex-below {
+  display: flex;
+  flex-direction: column;
   height: 100%;
 }
-.top-panel {
-  position: relative;
-  width: 100%;
+
+#panel-top {
+  height: auto; /* To modify from Elm to change size */
 }
+
 .panel-sep {
   border: 2px solid #1d2521;
   cursor: row-resize;
+}
+
+.extend {
+  flex-grow: 1;
 }
 
 #pdfview {
@@ -53,12 +57,10 @@ button:hover {
 
 /* CHAT */
 #chat {
-  padding-top: 20px;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding: 20px;
 }
 
-#chat_content {
+#chatcontent {
   background-color: #1d2521;
   font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
   
@@ -71,8 +73,7 @@ button:hover {
   
   overflow-y: scroll;
   
-  padding: 10px;
-  padding-bottom: 0;
+  padding: 20px;
 }
 
 input[type=text] {
@@ -110,8 +111,10 @@ input[type=text] {
 .tabitem:is(button) {
   border-radius: 0px;
 }
-.tabitem:not(img) {
+.tabitem {
+  box-sizing: border-box;
   height: calc(24px + 2 * var(--padding-y));
+  width: fit-content;
 }
 
 .tabitem:hover {

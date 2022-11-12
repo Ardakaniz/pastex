@@ -137,13 +137,13 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-  Html.div [ Attr.id "main-container" ]
-    [ Html.div [ Attr.class "side-panel" ]
+  Html.node "main" [ ]
+    [ Html.div [ Attr.class "flex-below", Attr.class "side-panel" ]
         [ Html.map OnParamsMsg <| 
-            Html.div [ Attr.class "top-panel "] [ lazy Ui.Parameters.view model.params ]
+            lazy Ui.Parameters.view model.params
         , Html.div [ Attr.class "panel-sep" ] [ ]
         , Html.map OnChatMsg <|
-            Html.div [ Attr.class "bot-panel" ] [ lazy Ui.Chat.view model.chat ]
+            lazy Ui.Chat.view model.chat
         ] 
     , Html.map OnAceMsg     <| lazy (\_ -> Ui.Ace.view) ()
     , Html.div [ Attr.class "side-panel" ]

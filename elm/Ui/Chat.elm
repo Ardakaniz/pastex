@@ -63,8 +63,12 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-  Html.div [ Attr.id "chat", Attr.class "panel" ]
-    [ Html.div [ Attr.id "chat_content" ]
+  Html.div
+    [ Attr.id "chat"
+    , Attr.class "extend"
+    , Attr.class "flex-below"
+    ]
+    [ Html.div [ Attr.id "chatcontent", Attr.class "extend" ]
         (List.map (\entry -> Html.div [ Attr.class "chatmsg" ] (formatMsg entry)) model.messages)
     , Html.input
         [ Attr.type_ "text"
