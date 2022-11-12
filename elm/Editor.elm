@@ -10,8 +10,9 @@ import Interprop.Websocket as Ws
 import Browser
 import Html exposing (Html)
 import Html.Attributes as Attr
+import Html.Events as Evt
 import Html.Lazy exposing (lazy)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 
 -- MAIN
@@ -28,10 +29,18 @@ main =
 -- MODEL
 
 type alias Model = 
-  { ace     : Ui.Ace.Model
-  , params  : Ui.Parameters.Model
-  , pdfView : Ui.PdfView.Model
-  , chat    : Ui.Chat.Model
+  { ace            : Ui.Ace.Model
+  , params         : Ui.Parameters.Model
+  , pdfView        : Ui.PdfView.Model
+  , chat           : Ui.Chat.Model
+  , leftPanelSep   : LeftPanelSep
+  , viewportHeight : Int
+  }
+
+type alias LeftPanelSep =
+  { grabbed : Bool
+  , pos     : ( Float, String ) -- ( value, unit ) 
+  , bounds  : ( Float, Float )  -- ( lower, upper )
   }
 
 init : String -> ( Model, Cmd Msg )
@@ -41,9 +50,15 @@ init original =
     ( pdfview, pdfviewCmd ) = Ui.PdfView.init 
   in
   ( { ace     = ace
-    , params  = Ui.Parameters.init
+    , params  = Ui.Parameters.init "50vh"
     , pdfView = pdfview
-    , chat    = Ui.Chat.init "You"
+    , chat    = Ui.Chat.init "You" "50vh"
+    , leftPanelSep =
+        { grabbed = False
+        , pos     = (50.0, "vh")
+        , bounds  = (20.0, 70.0)
+        }
+    , viewportHeight  = 967
     }
   , Cmd.batch
       [ aceCmd
@@ -61,6 +76,8 @@ type Msg
   | OnPdfViewMsg Ui.PdfView.Msg
   | OnWsMsg      (Maybe String) Value
   | OnInvalidInterprop String
+  | OnGrabLeftPanelSep Bool -- grabbed or released?
+  | OnMoveLeftPanelSep Float 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -104,7 +121,47 @@ update msg model =
             _    -> noCmd model
         Nothing  -> noCmd model
 
-    OnInvalidInterprop type_ -> ( model, Cmd.none )
+    OnInvalidInterprop type_ ->
+      noCmd model
+
+    OnGrabLeftPanelSep grabbed ->
+      let
+        leftPanelSep = model.leftPanelSep 
+      in
+        noCmd { model
+              | leftPanelSep = { leftPanelSep | grabbed = grabbed }
+              }
+
+    OnMoveLeftPanelSep y ->
+      let 
+        leftPanelSep   = model.leftPanelSep
+        bounds         = leftPanelSep.bounds
+        boundsStricter = Tuple.mapBoth (\l -> l * 0.5) (\u -> u * 1.25) bounds
+        (newMsg, newHeight)
+          = compare3 y boundsStricter
+              (Just (OnParamsMsg Ui.Parameters.Hide), Ui.Parameters.tabItemsHeight)
+              (compare3 y bounds
+                (Just (OnParamsMsg Ui.Parameters.Show), posAsVh <| Tuple.first bounds)
+                (Nothing,                               posAsVh <| y)
+                (Just (OnChatMsg Ui.Chat.Show),         posAsVh <| Tuple.second bounds)
+              )
+              (Just (OnChatMsg Ui.Chat.Hide), (99.5, "vh"))
+        ( newModel, newCmd )  = 
+          case newMsg of
+            Just m  -> update m model
+            Nothing -> noCmd model
+        ( params, paramsCmd ) =
+          Ui.Parameters.update (Ui.Parameters.OnDivHeightChange (posToStr newHeight)) newModel.params
+        ( chat,   chatCmd )   =
+          Ui.Chat.update (Ui.Chat.OnDivHeightChange (subPos newHeight Ui.Parameters.tabItemsHeight)) newModel.chat
+      in
+        ( { model
+          | params          = params
+          , chat            = chat
+          , leftPanelSep    = { leftPanelSep | pos = newHeight }
+          }
+        , Cmd.batch [ paramsCmd, chatCmd ]
+        )
 
 noCmd : Model -> ( Model, Cmd msg )
 noCmd model = ( model, Cmd.none )
@@ -123,10 +180,14 @@ subscriptions model =
               case tag of
                 "chatMsg" -> 
                   OnChatMsg -- TODO: wrap into a function
-                    <| Ui.Chat.OnRecv
-                      ((Decode.decodeValue (Decode.field "usr" Decode.string) data.content) |> Result.withDefault "unkownn")
-                      ((Decode.decodeValue (Decode.field "msg" Decode.string) data.content) |> Result.withDefault "invalid")
-
+                    <| (Decode.decodeValue
+                        (Decode.map2 Ui.Chat.OnRecv
+                          (Decode.field "usr" Decode.string)
+                          (Decode.field "msg" Decode.string)
+                        )
+                        data.content
+                          |>  Result.withDefault (Ui.Chat.OnInvalidRecv data.content)
+                        )
                 _         -> OnWsMsg data.tag data.content
             Nothing       -> OnWsMsg data.tag data.content
           
@@ -138,10 +199,27 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   Html.node "main" [ ]
-    [ Html.div [ Attr.class "flex-below", Attr.class "side-panel" ]
+    [ Html.div 
+          [ Attr.class "flex-below"
+          , Attr.class "side-panel"
+          , Attr.style "user-select" -- Prevent selection when grabbing
+              (if model.leftPanelSep.grabbed
+                then "none"
+                else "auto"
+              )
+          , Evt.onMouseUp (OnGrabLeftPanelSep False)
+          , Evt.on "mousemove" <|
+              if not model.leftPanelSep.grabbed
+                then Decode.fail "not grabbed"
+                else Decode.map (leftPanelSepMoved model) getMouseClientY
+          ]
         [ Html.map OnParamsMsg <| 
             lazy Ui.Parameters.view model.params
-        , Html.div [ Attr.class "panel-sep" ] [ ]
+        , Html.div 
+            [ Attr.class "panel-sep"
+            , Attr.style "top" (posToStr model.leftPanelSep.pos)
+            , Evt.onMouseDown (OnGrabLeftPanelSep True)
+            ] [ ]
         , Html.map OnChatMsg <|
             lazy Ui.Chat.view model.chat
         ] 
@@ -151,3 +229,39 @@ view model =
             lazy Ui.PdfView.view model.pdfView
         ]
     ]
+
+-- UTILS
+
+subPos : ( Float, String ) -> ( Float, String ) -> String
+subPos lhs rhs =
+  "calc(" ++ posToStr lhs ++ "-" ++ posToStr rhs ++ ")"
+
+posAsVh : Float -> ( Float, String )
+posAsVh val = (val, "vh")
+
+posToStr : ( Float, String ) -> String
+posToStr pos =
+  case pos of
+    (val, unit) -> String.fromFloat val ++ unit
+
+compare3 : comparable -> (comparable, comparable) -> a -> a -> a -> a
+compare3 x bounds ifMin ifBetween ifMax =
+  let
+    ( lower, upper ) = bounds
+  in
+    if x < lower
+      then ifMin
+      else 
+        if x > upper
+          then ifMax
+          else ifBetween
+
+leftPanelSepMoved : Model -> Float -> Msg
+leftPanelSepMoved model y =
+  OnMoveLeftPanelSep
+    <| 100.0 * (y / (toFloat model.viewportHeight))
+
+getMouseClientY : Decoder Float
+getMouseClientY =
+  Decode.field "clientY" Decode.int
+    |> Decode.map toFloat

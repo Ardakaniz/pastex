@@ -60,6 +60,10 @@ main {
   padding: 20px;
 }
 
+#chat > h1 {
+  font-size: larger;
+}
+
 #chatcontent {
   background-color: #1d2521;
   font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
