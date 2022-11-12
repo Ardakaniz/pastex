@@ -49,7 +49,7 @@
 				ws = new WebSocket("ws://" + location.host + "/ws");
 				
 				ws.addEventListener("message", (e) => {
-					const data = e.data;
+					const data = JSON.parse(e.data);
 
 					if (data.tag == "pdf") {  // Elm cannot handle raw bytes, so we do everything we need in pure JS... :(
 						// data.content contains diffed bytes
@@ -80,7 +80,10 @@
 				})
 			}
 			else if (data.tag == "send") {
-				ws.send(data.content);
+				ws.send(JSON.stringify({
+					tag: "chatMsg",
+					content: data.content
+				}));
 			}
 		} // end "ws"
 		else {

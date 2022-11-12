@@ -59,7 +59,7 @@ fetch =
 -- VIEW
 
 view : Model -> Html Msg
-view model = Html.div [ Attr.id "pdfview", Attr.class "panel" ]
+view model = Html.div [ Attr.id "pdfview" ]
               [ Html.h3  [ ] [ Html.text "PDF Preview" ]
               , Html.button [ Attr.id "compile_btn", onClick OnStartFetching ] [ Html.text "Compile..." ]
               , Html.div [ Attr.id "loading_msg"] [ Html.text (statusToStr model.status) ]

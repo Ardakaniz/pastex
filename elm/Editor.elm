@@ -31,6 +31,7 @@ type alias Model =
   { ace     : Ui.Ace.Model
   , params  : Ui.Parameters.Model
   , pdfView : Ui.PdfView.Model
+  , chat    : Ui.Chat.Model
   }
 
 init : String -> ( Model, Cmd Msg )
@@ -42,29 +43,48 @@ init original =
   ( { ace     = ace
     , params  = Ui.Parameters.init
     , pdfView = pdfview
+    , chat    = Ui.Chat.init "You"
     }
   , Cmd.batch
-    [ aceCmd
-    , Cmd.map OnPdfViewMsg pdfviewCmd
-    , Ws.connectWith (Encode.string "World!") |> toJs
-    ]
+      [ aceCmd
+      , Cmd.map OnPdfViewMsg pdfviewCmd
+      , Ws.connectWith (Encode.string "World!") |> toJs
+      ]
   )
 
 -- UPDATE
 
 type Msg
-  = OnParamsMsg  Ui.Parameters.Msg
+  = OnAceMsg     Ui.Ace.Msg
+  | OnChatMsg    Ui.Chat.Msg
+  | OnParamsMsg  Ui.Parameters.Msg
   | OnPdfViewMsg Ui.PdfView.Msg
-  | OnChatMsg    
-  | OnAceMsg     Ui.Ace.Msg -- Ace Ui has its own msg type
   | OnWsMsg      (Maybe String) Value
   | OnInvalidInterprop String
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
+    OnAceMsg aceMsg ->
+      let
+        new = Ui.Ace.update aceMsg model.ace 
+      in
+        noCmd { model | ace = new }
+    
+    OnChatMsg chatMsg ->
+      let
+        ( new, chatCmd ) = Ui.Chat.update chatMsg model.chat
+      in
+        ( { model | chat = new }
+        , Cmd.map OnChatMsg chatCmd
+        )
     OnParamsMsg paramsMsg ->
-      noCmd { model | params = Ui.Parameters.update paramsMsg model.params }
+      let
+        ( new, paramsCmd ) = Ui.Parameters.update paramsMsg model.params
+      in
+        ( { model | params = new }
+        , Cmd.map OnParamsMsg paramsCmd
+        )
 
     OnPdfViewMsg pdfViewMsg ->
       let
@@ -73,15 +93,6 @@ update msg model =
         ( { model | pdfView = pdfView }
         , Cmd.map OnPdfViewMsg pdfViewCmd
         )
-
-    OnChatMsg ->
-      ( model, Cmd.none )
-
-    OnAceMsg aceMsg ->
-      let
-        new = Ui.Ace.update aceMsg model.ace 
-      in
-        noCmd { model | ace = new  }
       
     OnWsMsg tag content ->
       case tag of
@@ -89,6 +100,7 @@ update msg model =
           case tag_ of -- TODO
             "connected" -> noCmd model
             "closed"    -> noCmd model 
+            "chatMsg"   -> noCmd model -- Should NOT happen...
             _    -> noCmd model
         Nothing  -> noCmd model
 
@@ -104,8 +116,20 @@ subscriptions model =
   Interprop.fromJs
     (\data ->
       case data.type_ of
-        Interprop.Ace         -> OnAceMsg (Ui.Ace.decodeChanges data.content)
-        Interprop.WebSocket   -> OnWsMsg data.tag data.content
+        Interprop.Ace       -> OnAceMsg (Ui.Ace.decodeChanges data.content)
+        Interprop.WebSocket ->
+          case data.tag of
+            Just tag ->
+              case tag of
+                "chatMsg" -> 
+                  OnChatMsg -- TODO: wrap into a function
+                    <| Ui.Chat.OnRecv
+                      ((Decode.decodeValue (Decode.field "usr" Decode.string) data.content) |> Result.withDefault "unkownn")
+                      ((Decode.decodeValue (Decode.field "msg" Decode.string) data.content) |> Result.withDefault "invalid")
+
+                _         -> OnWsMsg data.tag data.content
+            Nothing       -> OnWsMsg data.tag data.content
+          
         Interprop.Invalid inv -> OnInvalidInterprop inv
     )
 
@@ -114,8 +138,16 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   Html.div [ Attr.id "main-container" ]
-    [ Html.map OnParamsMsg  <| lazy Ui.Parameters.view model.params
+    [ Html.div [ Attr.class "side-panel" ]
+        [ Html.map OnParamsMsg <| 
+            Html.div [ Attr.class "top-panel "] [ lazy Ui.Parameters.view model.params ]
+        , Html.div [ Attr.class "panel-sep" ] [ ]
+        , Html.map OnChatMsg <|
+            Html.div [ Attr.class "bot-panel" ] [ lazy Ui.Chat.view model.chat ]
+        ] 
     , Html.map OnAceMsg     <| lazy (\_ -> Ui.Ace.view) ()
-    , Html.map OnPdfViewMsg <| lazy Ui.PdfView.view model.pdfView
-    , Html.map (\_ -> OnChatMsg) <| lazy (\_ -> Ui.Chat.view) ()
+    , Html.div [ Attr.class "side-panel" ]
+        [ Html.map OnPdfViewMsg <|
+            lazy Ui.PdfView.view model.pdfView
+        ]
     ]
