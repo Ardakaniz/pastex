@@ -6,9 +6,14 @@ module Ui.Parameters exposing
   , view
   )
 
+import Interprop exposing (toJs)
+import Interprop.Websocket as Ws
+
 import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events exposing (onClick)
+
+import Json.Encode
 
 -- TYPES
 
@@ -29,19 +34,39 @@ init = { selectedTab = LaTeXParams }
 
 type Msg
   = SelectTab Tab
+  | Ping -- easter egg
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
   case msg of
     SelectTab tab ->
-      { model | selectedTab = tab }
+      ( { model | selectedTab = tab }
+      , Cmd.none
+      )
+
+    Ping ->
+      ( model
+      , Ws.sendObj
+          [ ("usr", Json.Encode.string "PP")
+          , ("msg", Json.Encode.string "ping")
+          ]
+            |> toJs
+      )
 
 -- VIEW
 
 view : Model -> Html Msg
-view model = Html.div [ Attr.id "params", Attr.class "panel", Attr.class "splitted_bot" ]
+view model = Html.div [ Attr.id "params" ]
               [ Html.div [ Attr.id "tabitems" ]
-                  [ Html.button (tabHtmlAttributes model FileTree)    [ Html.text "Files" ]
+                  [ Html.img
+                      [ Attr.id "pastex_icon"
+                      , Attr.class "tabitem"
+                      , Attr.src "/static/favicon.ico"
+                      , Attr.width 24
+                      , Attr.height 24
+                      , onClick Ping
+                      ] [ ]
+                  , Html.button (tabHtmlAttributes model FileTree)    [ Html.text "Files" ]
                   , Html.button (tabHtmlAttributes model LaTeXParams) [ Html.text "LaTeX" ]
                   ]
               , Html.div [ Attr.id "files"
