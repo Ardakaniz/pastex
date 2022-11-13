@@ -46,15 +46,16 @@
 					return;
 				}
 
-				ws = new WebSocket("ws://" + location.host + "/ws");
+				ws = new WebSocket("ws://" + location.host);
 				
 				ws.addEventListener("message", (e) => {
 					const data = JSON.parse(e.data);
-
+					
 					if (data.tag == "pdf") {  // Elm cannot handle raw bytes, so we do everything we need in pure JS... :(
 						// data.content contains diffed bytes
 					} 
 					else {
+						console.log(data);
 						toElm({
 							type: "ws",
 							tag: data.tag,

@@ -9,7 +9,11 @@
 	<link rel="stylesheet" type="text/css" href="../static/css/editor.css" media="screen" />
 
 	<script type="text/javascript">
-		const original_content = "{{{ original_content }}}"
+		const id = "{{{ id }}}";
+		const original_content = "{{{ original_content }}}";
+
+		console.log(id);
+		window.history.replaceState({}, '', "/e/" + id);
 	</script>
 
 	<script type="text/javascript" src="../static/js/editor-elm.js" defer></script>
